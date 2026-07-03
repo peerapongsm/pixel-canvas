@@ -6,7 +6,7 @@ canvas 64×64 ที่คุณกับเพื่อนคนเดียว
 
 ```
 npm install
-npm run dev        # http://localhost:3000/pixel-canvas
+npm run dev        # http://localhost:3000/
 npm test            # vitest (lib/grid, lib/proto, lib/codes)
 npm run typecheck
 npm run build        # static export -> out/
@@ -14,7 +14,7 @@ npm run build        # static export -> out/
 
 ## Stack
 
-Next 15 static export (`output: "export"`, basePath `/pixel-canvas`), TypeScript, Vitest, zero runtime deps beyond Next/React itself. No service worker.
+Next 15 static export (`output: "export"`), TypeScript, Vitest, zero runtime deps beyond Next/React itself. No service worker.
 
 ## Architecture
 

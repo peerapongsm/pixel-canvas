@@ -140,67 +140,73 @@ export default function Home() {
       </header>
 
       <main>
-        <CanvasGrid
-          grid={grid}
-          palette={PALETTE}
-          onPaint={handlePaint}
-          onCursorMove={handleCursorMove}
-          friendCursor={friendCursor}
-          heatMode={heatMode}
-          myPeerId={peerId}
-        />
+        <div className="workspace">
+          <div className="workspace-canvas">
+            <CanvasGrid
+              grid={grid}
+              palette={PALETTE}
+              onPaint={handlePaint}
+              onCursorMove={handleCursorMove}
+              friendCursor={friendCursor}
+              heatMode={heatMode}
+              myPeerId={peerId}
+            />
 
-        <Toolbar
-          palette={PALETTE}
-          selectedColor={selectedColor}
-          onSelectColor={setSelectedColor}
-          heatMode={heatMode}
-          onToggleHeat={() => setHeatMode((h) => !h)}
-          onExport={() => exportGridAsPng(grid, PALETTE)}
-          onClearRequest={handleClearRequest}
-          clearDisabled={clearFlow !== "idle"}
-        />
+            {clearFlow === "confirm-solo" && (
+              <div className="clear-banner">
+                <p>ยืนยันล้างผืนทั้งหมด? การกระทำนี้กู้คืนไม่ได้</p>
+                <div className="toolbar-actions">
+                  <button type="button" className="btn btn-sm btn-danger" onClick={handleClearConfirmSolo}>
+                    ยืนยัน
+                  </button>
+                  <button type="button" className="btn btn-sm btn-outline" onClick={handleClearCancel}>
+                    ยกเลิก
+                  </button>
+                </div>
+              </div>
+            )}
 
-        {clearFlow === "confirm-solo" && (
-          <div className="clear-banner">
-            <p>ยืนยันล้างผืนทั้งหมด? การกระทำนี้กู้คืนไม่ได้</p>
-            <div className="toolbar-actions">
-              <button type="button" className="btn btn-sm btn-danger" onClick={handleClearConfirmSolo}>
-                ยืนยัน
-              </button>
-              <button type="button" className="btn btn-sm btn-outline" onClick={handleClearCancel}>
-                ยกเลิก
-              </button>
-            </div>
+            {clearFlow === "awaiting-peer" && (
+              <div className="clear-banner">
+                <p>รอเพื่อนกดยอมรับการล้างผืนทั้งหมด...</p>
+                <button type="button" className="btn btn-sm btn-outline" onClick={handleClearCancel}>
+                  ยกเลิก
+                </button>
+              </div>
+            )}
+
+            {clearFlow === "peer-requested" && (
+              <div className="clear-banner">
+                <p>เพื่อนขอล้างผืนทั้งหมด ยอมรับไหม?</p>
+                <div className="toolbar-actions">
+                  <button type="button" className="btn btn-sm btn-danger" onClick={handleClearAccept}>
+                    ยอมรับ
+                  </button>
+                  <button type="button" className="btn btn-sm btn-outline" onClick={handleClearCancel}>
+                    ปฏิเสธ
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
-        )}
 
-        {clearFlow === "awaiting-peer" && (
-          <div className="clear-banner">
-            <p>รอเพื่อนกดยอมรับการล้างผืนทั้งหมด...</p>
-            <button type="button" className="btn btn-sm btn-outline" onClick={handleClearCancel}>
-              ยกเลิก
-            </button>
+          <div className="workspace-tools">
+            <Toolbar
+              palette={PALETTE}
+              selectedColor={selectedColor}
+              onSelectColor={setSelectedColor}
+              heatMode={heatMode}
+              onToggleHeat={() => setHeatMode((h) => !h)}
+              onExport={() => exportGridAsPng(grid, PALETTE)}
+              onClearRequest={handleClearRequest}
+              clearDisabled={clearFlow !== "idle"}
+            />
           </div>
-        )}
 
-        {clearFlow === "peer-requested" && (
-          <div className="clear-banner">
-            <p>เพื่อนขอล้างผืนทั้งหมด ยอมรับไหม?</p>
-            <div className="toolbar-actions">
-              <button type="button" className="btn btn-sm btn-danger" onClick={handleClearAccept}>
-                ยอมรับ
-              </button>
-              <button type="button" className="btn btn-sm btn-outline" onClick={handleClearCancel}>
-                ปฏิเสธ
-              </button>
-            </div>
+          <div className="workspace-connect panel">
+            <h2>เชื่อมต่อกับเพื่อน</h2>
+            <ConnectionStepper connection={connection} connectionState={connectionState} role={role} onRoleChange={setRole} />
           </div>
-        )}
-
-        <div className="panel">
-          <h2>เชื่อมต่อกับเพื่อน</h2>
-          <ConnectionStepper connection={connection} connectionState={connectionState} role={role} onRoleChange={setRole} />
         </div>
       </main>
 
