@@ -4,6 +4,8 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { apply, merge, createEmptyGrid, type Grid } from "@/lib/grid";
 import type { Message } from "@/lib/proto";
+import { isValidPixelMessage, isValidCursorMessage, filterValidCells } from "@/lib/validate";
+import { shouldAcceptClearAccept, shouldAcceptClearRequest, type ClearFlow } from "@/lib/clearFlow";
 import { PixelCanvasConnection, type ConnectionState } from "@/lib/rtc";
 import { PALETTE } from "@/lib/palette";
 import { getOrCreatePeerId } from "@/lib/peerId";
@@ -14,7 +16,6 @@ import Toolbar from "@/components/Toolbar";
 import ConnectionStepper from "@/components/ConnectionStepper";
 
 type Role = "none" | "host" | "guest";
-type ClearFlow = "idle" | "awaiting-peer" | "peer-requested" | "confirm-solo";
 
 export default function Home() {
   const [connectionState, setConnectionState] = useState<ConnectionState>("idle");
@@ -26,23 +27,39 @@ export default function Home() {
   const [selectedColor, setSelectedColor] = useState(0);
   const [heatMode, setHeatMode] = useState(false);
 
+  // handleMessage is created once (stable identity, passed to the
+  // PixelCanvasConnection at construction) so it can't close over fresh
+  // `clearFlow` state; this ref keeps the latest value available to it.
+  const clearFlowRef = useRef<ClearFlow>("idle");
+  useEffect(() => {
+    clearFlowRef.current = clearFlow;
+  }, [clearFlow]);
+
   const handleMessage = useCallback((message: Message) => {
     switch (message.type) {
       case "pixel":
-        setGrid((g) => apply(g, message));
+        if (isValidPixelMessage(message)) {
+          setGrid((g) => apply(g, message));
+        }
         break;
       case "cursor":
-        setFriendCursor({ x: message.x, y: message.y });
+        if (isValidCursorMessage(message)) {
+          setFriendCursor({ x: message.x, y: message.y });
+        }
         break;
       case "fullSync":
-        setGrid((g) => merge(g, message.grid));
+        setGrid((g) => merge(g, filterValidCells(message.grid)));
         break;
       case "clearRequest":
-        setClearFlow("peer-requested");
+        if (shouldAcceptClearRequest(clearFlowRef.current)) {
+          setClearFlow("peer-requested");
+        }
         break;
       case "clearAccept":
-        setGrid(createEmptyGrid());
-        setClearFlow("idle");
+        if (shouldAcceptClearAccept(clearFlowRef.current)) {
+          setGrid(createEmptyGrid());
+          setClearFlow("idle");
+        }
         break;
     }
   }, []);
