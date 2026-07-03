@@ -2,17 +2,17 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { GRID_SIZE, indexOf, inBounds, type Grid } from "@/lib/grid";
+import { BrushIcon, PanIcon, ZoomInIcon, ZoomOutIcon } from "@/components/icons";
 
 const CANVAS_PX = 512; // fixed internal raster resolution, CSS scales it to fit
 const CELL_PX = CANVAS_PX / GRID_SIZE;
 const MIN_ZOOM = 1;
 const MAX_ZOOM = 8;
-const EMPTY_A = "#1c1e2e";
-const EMPTY_B = "#20222f";
-const MINE_COLOR = "#41a6f6";
+const MINE_COLOR = "#3b5dc9";
 const THEIRS_COLOR = "#ef7d57";
-const CURSOR_COLOR = "#ffcd75";
+const CURSOR_COLOR = "#ff3d81";
 const CURSOR_THROTTLE_MS = 100; // 10Hz
+const ZOOM_STEP = 1.4;
 
 interface Point {
   x: number;
@@ -226,6 +226,7 @@ export default function CanvasGrid({
     canvas.height = CANVAS_PX;
 
     ctx.imageSmoothingEnabled = false;
+    ctx.clearRect(0, 0, CANVAS_PX, CANVAS_PX);
     ctx.save();
     ctx.translate(-pan.x, -pan.y);
     ctx.scale(zoom, zoom);
@@ -233,55 +234,104 @@ export default function CanvasGrid({
     for (let y = 0; y < GRID_SIZE; y++) {
       for (let x = 0; x < GRID_SIZE; x++) {
         const cell = grid[indexOf(x, y)];
-        let color: string;
-        if (cell === null) {
-          color = (x + y) % 2 === 0 ? EMPTY_A : EMPTY_B;
-        } else if (heatMode) {
-          color = cell.peerId === myPeerId ? MINE_COLOR : THEIRS_COLOR;
-        } else {
-          color = palette[cell.color] ?? EMPTY_A;
-        }
-        ctx.fillStyle = color;
+        // unpainted cells stay transparent so the board's checkerboard shows through
+        if (cell === null) continue;
+        ctx.fillStyle = heatMode ? (cell.peerId === myPeerId ? MINE_COLOR : THEIRS_COLOR) : palette[cell.color] ?? "#c9bfa9";
         ctx.fillRect(x * CELL_PX, y * CELL_PX, CELL_PX, CELL_PX);
       }
     }
 
+    // friend cursor: chunky pixel-arrow pointer, ink outline for contrast
     if (friendCursor && inBounds(friendCursor.x, friendCursor.y)) {
-      const cx = friendCursor.x * CELL_PX + CELL_PX / 2;
-      const cy = friendCursor.y * CELL_PX + CELL_PX / 2;
+      const tipX = friendCursor.x * CELL_PX;
+      const tipY = friendCursor.y * CELL_PX;
+      const s = CELL_PX * 1.7;
       ctx.strokeStyle = CURSOR_COLOR;
-      ctx.lineWidth = 1.5 / zoom;
-      ctx.strokeRect(friendCursor.x * CELL_PX, friendCursor.y * CELL_PX, CELL_PX, CELL_PX);
-      ctx.beginPath();
-      ctx.arc(cx, cy, CELL_PX / 3, 0, Math.PI * 2);
-      ctx.fillStyle = CURSOR_COLOR;
-      ctx.globalAlpha = 0.5;
-      ctx.fill();
+      ctx.globalAlpha = 0.55;
+      ctx.lineWidth = 1 / zoom;
+      ctx.strokeRect(tipX, tipY, CELL_PX, CELL_PX);
       ctx.globalAlpha = 1;
+
+      ctx.save();
+      ctx.translate(tipX, tipY);
+      ctx.beginPath();
+      ctx.moveTo(0, 0);
+      ctx.lineTo(0, s);
+      ctx.lineTo(s * 0.3, s * 0.75);
+      ctx.lineTo(s * 0.5, s * 1.05);
+      ctx.lineTo(s * 0.68, s * 0.9);
+      ctx.lineTo(s * 0.42, s * 0.62);
+      ctx.lineTo(s * 0.72, s * 0.55);
+      ctx.closePath();
+      ctx.fillStyle = CURSOR_COLOR;
+      ctx.fill();
+      ctx.lineWidth = 1.4 / zoom;
+      ctx.strokeStyle = "#2c2620";
+      ctx.stroke();
+      ctx.restore();
     }
 
     ctx.restore();
   }, [grid, zoom, pan, palette, heatMode, myPeerId, friendCursor]);
 
+  const handleZoomIn = useCallback(
+    () => zoomAtPoint(zoom * ZOOM_STEP, CANVAS_PX / 2, CANVAS_PX / 2),
+    [zoom, zoomAtPoint]
+  );
+  const handleZoomOut = useCallback(
+    () => zoomAtPoint(zoom / ZOOM_STEP, CANVAS_PX / 2, CANVAS_PX / 2),
+    [zoom, zoomAtPoint]
+  );
+
+  // screen-space position (in % of the stage) for the friend cursor's DOM name tag
+  let friendTagStyle: { left: string; top: string } | null = null;
+  if (friendCursor && inBounds(friendCursor.x, friendCursor.y)) {
+    const worldX = friendCursor.x * CELL_PX;
+    const worldY = friendCursor.y * CELL_PX;
+    const dispX = worldX * zoom - pan.x;
+    const dispY = worldY * zoom - pan.y;
+    friendTagStyle = { left: `${(dispX / CANVAS_PX) * 100}%`, top: `${(dispY / CANVAS_PX) * 100}%` };
+  }
+
   return (
-    <div className="canvas-stage">
-      <canvas
-        ref={canvasRef}
-        onPointerDown={handlePointerDown}
-        onPointerMove={handlePointerMove}
-        onPointerUp={endPointer}
-        onPointerCancel={endPointer}
-        onPointerLeave={endPointer}
-        onWheel={handleWheel}
-      />
-      <button
-        type="button"
-        className="btn btn-sm btn-outline"
-        style={{ position: "absolute", top: 8, right: 8 }}
-        onClick={() => setMode((m) => (m === "draw" ? "pan" : "draw"))}
-      >
-        {mode === "draw" ? "โหมด: วาด" : "โหมด: เลื่อน"}
-      </button>
+    <div className="canvas-board">
+      <div className="canvas-stage">
+        <canvas
+          ref={canvasRef}
+          onPointerDown={handlePointerDown}
+          onPointerMove={handlePointerMove}
+          onPointerUp={endPointer}
+          onPointerCancel={endPointer}
+          onPointerLeave={endPointer}
+          onWheel={handleWheel}
+        />
+        {friendTagStyle && (
+          <div className="friend-tag" style={friendTagStyle}>
+            เพื่อน
+          </div>
+        )}
+        <div className="canvas-tools">
+          <button
+            type="button"
+            className={`icon-btn${mode === "pan" ? " active" : ""}`}
+            onClick={() => setMode((m) => (m === "draw" ? "pan" : "draw"))}
+            aria-pressed={mode === "pan"}
+          >
+            {mode === "draw" ? <BrushIcon /> : <PanIcon />}
+            {mode === "draw" ? "วาด" : "เลื่อน"}
+          </button>
+        </div>
+      </div>
+
+      <div className="zoom-tools">
+        <button type="button" className="icon-btn" onClick={handleZoomOut} aria-label="ซูมออก">
+          <ZoomOutIcon />
+        </button>
+        <span className="zoom-readout mono">{Math.round(zoom * 100)}%</span>
+        <button type="button" className="icon-btn" onClick={handleZoomIn} aria-label="ซูมเข้า">
+          <ZoomInIcon />
+        </button>
+      </div>
     </div>
   );
 }

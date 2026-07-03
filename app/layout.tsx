@@ -1,5 +1,20 @@
 import type { Metadata } from "next";
+import { Chakra_Petch, Sarabun } from "next/font/google";
 import "./globals.css";
+
+const chakraPetch = Chakra_Petch({
+  subsets: ["latin", "thai"],
+  weight: ["600", "700"],
+  variable: "--font-display",
+  display: "swap",
+});
+
+const sarabun = Sarabun({
+  subsets: ["latin", "thai"],
+  weight: ["400", "500", "600", "700"],
+  variable: "--font-body",
+  display: "swap",
+});
 
 export const metadata: Metadata = {
   title: "Pixel Canvas สองคน",
@@ -8,7 +23,7 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="th">
+    <html lang="th" className={`${chakraPetch.variable} ${sarabun.variable}`}>
       <head>
         <script
           defer

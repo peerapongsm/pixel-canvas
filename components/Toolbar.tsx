@@ -1,5 +1,7 @@
 "use client";
 
+import { DownloadIcon, FlameIcon, TrashIcon } from "@/components/icons";
+
 export interface ToolbarProps {
   palette: string[];
   selectedColor: number;
@@ -22,14 +24,14 @@ export default function Toolbar({
   clearDisabled,
 }: ToolbarProps) {
   return (
-    <div className="panel">
-      <div className="toolbar-row">
-        <div className="palette">
+    <div className="dock">
+      <div className="dock-row">
+        <div className="palette-tray">
           {palette.map((color, i) => (
             <button
               key={color}
               type="button"
-              className={`swatch${i === selectedColor ? " active" : ""}`}
+              className={`well${i === selectedColor ? " active" : ""}`}
               style={{ background: color }}
               aria-label={`สี ${i + 1}`}
               onClick={() => onSelectColor(i)}
@@ -38,20 +40,37 @@ export default function Toolbar({
         </div>
       </div>
 
-      <div className="toggle-row">
-        <span>โหมด heat: ใครวาดตรงไหน (ฉัน/เพื่อน)</span>
-        <button type="button" className="btn btn-sm btn-outline" onClick={onToggleHeat}>
-          {heatMode ? "ปิด" : "เปิด"}
-        </button>
-      </div>
+      <div className="dock-actions">
+        <div className="heat-legend">
+          <button
+            type="button"
+            className={`icon-btn${heatMode ? " on" : ""}`}
+            onClick={onToggleHeat}
+            aria-pressed={heatMode}
+          >
+            <FlameIcon />
+            heat
+          </button>
+          <span className={`legend-chip mine${heatMode ? " active" : ""}`}>
+            <span className="dot" />
+            ฉัน
+          </span>
+          <span className={`legend-chip theirs${heatMode ? " active" : ""}`}>
+            <span className="dot" />
+            เพื่อน
+          </span>
+        </div>
 
-      <div className="toolbar-actions">
-        <button type="button" className="btn btn-sm btn-outline" onClick={onExport}>
-          ส่งออก PNG
-        </button>
-        <button type="button" className="btn btn-sm btn-danger" onClick={onClearRequest} disabled={clearDisabled}>
-          ล้างผืนทั้งหมด
-        </button>
+        <div className="dock-row" style={{ gap: 6 }}>
+          <button type="button" className="icon-btn" onClick={onExport}>
+            <DownloadIcon />
+            PNG
+          </button>
+          <button type="button" className="icon-btn" onClick={onClearRequest} disabled={clearDisabled}>
+            <TrashIcon />
+            ล้าง
+          </button>
+        </div>
       </div>
     </div>
   );

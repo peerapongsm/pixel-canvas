@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { PixelCanvasConnection, type ConnectionState } from "@/lib/rtc";
 import { validateCode } from "@/lib/codes";
+import { CheckIcon, CopyIcon, DoorIcon, LinkIcon } from "@/components/icons";
 
 type Role = "none" | "host" | "guest";
 
@@ -24,11 +25,11 @@ const STATE_LABEL: Record<ConnectionState, string> = {
   closed: "ปิดการเชื่อมต่อแล้ว",
 };
 
-function stateDotClass(state: ConnectionState): string {
-  if (state === "connected") return "state-dot connected";
-  if (state === "failed" || state === "disconnected") return "state-dot failed";
-  if (state === "gathering" || state === "waiting-for-answer" || state === "connecting") return "state-dot pending";
-  return "state-dot";
+function ledClass(state: ConnectionState): string {
+  if (state === "connected") return "led connected";
+  if (state === "failed" || state === "disconnected") return "led failed";
+  if (state === "gathering" || state === "waiting-for-answer" || state === "connecting") return "led pending";
+  return "led";
 }
 
 async function copyToClipboard(text: string): Promise<boolean> {
@@ -121,9 +122,11 @@ export default function ConnectionStepper({ connection, connectionState, role, o
         <p className="hint">เล่นคนเดียวได้เสมอ — เชื่อมต่อเพื่อวาดพร้อมเพื่อนแบบสด ๆ</p>
         <div className="role-picker">
           <button type="button" className="btn btn-primary" onClick={startHost}>
+            <DoorIcon />
             เปิดห้อง
           </button>
           <button type="button" className="btn btn-outline" onClick={startGuest}>
+            <LinkIcon />
             เข้าร่วมห้อง
           </button>
         </div>
@@ -134,7 +137,7 @@ export default function ConnectionStepper({ connection, connectionState, role, o
   return (
     <div className="stepper">
       <div className="state-badge">
-        <span className={stateDotClass(connectionState)} />
+        <span className={ledClass(connectionState)} />
         {STATE_LABEL[connectionState]}
       </div>
 
@@ -149,10 +152,11 @@ export default function ConnectionStepper({ connection, connectionState, role, o
                 <textarea className="code-box" readOnly value={inviteCode} />
                 <button
                   type="button"
-                  className="btn btn-sm btn-outline"
+                  className="btn btn-primary copy-btn"
                   onClick={async () => setCopiedInvite(await copyToClipboard(inviteCode))}
                 >
-                  {copiedInvite ? "คัดลอกแล้ว ✓" : "คัดลอกโค้ดชวน"}
+                  {copiedInvite ? <CheckIcon /> : <CopyIcon />}
+                  {copiedInvite ? "คัดลอกแล้ว" : "คัดลอกโค้ดชวน"}
                 </button>
               </>
             ) : (
@@ -208,10 +212,11 @@ export default function ConnectionStepper({ connection, connectionState, role, o
               <textarea className="code-box" readOnly value={answerCode} />
               <button
                 type="button"
-                className="btn btn-sm btn-outline"
+                className="btn btn-primary copy-btn"
                 onClick={async () => setCopiedAnswer(await copyToClipboard(answerCode))}
               >
-                {copiedAnswer ? "คัดลอกแล้ว ✓" : "คัดลอกโค้ดตอบ"}
+                {copiedAnswer ? <CheckIcon /> : <CopyIcon />}
+                {copiedAnswer ? "คัดลอกแล้ว" : "คัดลอกโค้ดตอบ"}
               </button>
               <p className="hint">รอเพื่อนวางโค้ดนี้ฝั่งเขาเพื่อต่อติด</p>
             </div>
