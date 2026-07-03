@@ -1,9 +1,11 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { PixelCanvasConnection, type ConnectionState } from "@/lib/rtc";
-import { validateCode } from "@/lib/codes";
-import { CheckIcon, CopyIcon, DoorIcon, LinkIcon } from "@/components/icons";
+import { validateAnyCode } from "@/lib/shortCode";
+import { buildInviteLink, parseInviteFragment } from "@/lib/inviteLink";
+import QrCode from "@/components/QrCode";
+import { CheckIcon, CopyIcon, DoorIcon, LinkIcon, QrIcon, ShareIcon } from "@/components/icons";
 
 type Role = "none" | "host" | "guest";
 
@@ -12,11 +14,13 @@ export interface ConnectionStepperProps {
   connectionState: ConnectionState;
   role: Role;
   onRoleChange: (role: Role) => void;
+  /** invite code arriving via a #j= link — auto-starts the guest flow */
+  initialInviteCode?: string | null;
 }
 
 const STATE_LABEL: Record<ConnectionState, string> = {
   idle: "ยังไม่ได้เชื่อมต่อ",
-  gathering: "กำลังเตรียมโค้ด...",
+  gathering: "กำลังเตรียมลิงก์...",
   "waiting-for-answer": "รอโค้ดตอบจากเพื่อน",
   connecting: "กำลังเชื่อมต่อ...",
   connected: "เชื่อมต่อแล้ว 🎉",
@@ -41,7 +45,24 @@ async function copyToClipboard(text: string): Promise<boolean> {
   }
 }
 
-export default function ConnectionStepper({ connection, connectionState, role, onRoleChange }: ConnectionStepperProps) {
+/** Accept either a bare code or a whole invite link pasted into the code box. */
+function extractCode(pasted: string): string {
+  const trimmed = pasted.trim();
+  const hashIndex = trimmed.indexOf("#j=");
+  if (hashIndex >= 0) {
+    const fromLink = parseInviteFragment(trimmed.slice(hashIndex));
+    if (fromLink) return fromLink;
+  }
+  return trimmed;
+}
+
+export default function ConnectionStepper({
+  connection,
+  connectionState,
+  role,
+  onRoleChange,
+  initialInviteCode = null,
+}: ConnectionStepperProps) {
   const [inviteCode, setInviteCode] = useState("");
   const [answerCode, setAnswerCode] = useState("");
   const [pastedInvite, setPastedInvite] = useState("");
@@ -50,6 +71,23 @@ export default function ConnectionStepper({ connection, connectionState, role, o
   const [error, setError] = useState<string | null>(null);
   const [copiedInvite, setCopiedInvite] = useState(false);
   const [copiedAnswer, setCopiedAnswer] = useState(false);
+  const [showQr, setShowQr] = useState(false);
+  const [canShare, setCanShare] = useState(false);
+
+  const inviteLink = inviteCode ? buildInviteLink(window.location.origin, inviteCode) : "";
+
+  useEffect(() => {
+    setCanShare(typeof navigator !== "undefined" && typeof navigator.share === "function");
+  }, []);
+
+  // A #j= link landed us here: join automatically, no pasting needed.
+  const autoJoined = useRef(false);
+  useEffect(() => {
+    if (!initialInviteCode || autoJoined.current) return;
+    autoJoined.current = true;
+    void joinWithCode(initialInviteCode);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [initialInviteCode]);
 
   function reset() {
     connection.close();
@@ -59,6 +97,7 @@ export default function ConnectionStepper({ connection, connectionState, role, o
     setPastedAnswer("");
     setError(null);
     setBusy(false);
+    setShowQr(false);
     onRoleChange("none");
   }
 
@@ -76,8 +115,17 @@ export default function ConnectionStepper({ connection, connectionState, role, o
     }
   }
 
+  async function shareInvite() {
+    try {
+      await navigator.share({ title: "มาวาด Pixel Canvas ด้วยกัน", url: inviteLink });
+    } catch {
+      // user dismissed the share sheet — nothing to do
+    }
+  }
+
   async function submitAnswer() {
-    const result = validateCode(pastedAnswer);
+    const code = extractCode(pastedAnswer);
+    const result = validateAnyCode(code);
     if (!result.valid) {
       setError(result.error);
       return;
@@ -85,7 +133,7 @@ export default function ConnectionStepper({ connection, connectionState, role, o
     setBusy(true);
     setError(null);
     try {
-      await connection.completeWithAnswer(pastedAnswer.trim());
+      await connection.completeWithAnswer(code);
     } catch {
       setError("เชื่อมต่อไม่สำเร็จ ตรวจสอบว่าโค้ดตอบถูกวางครบถ้วน");
     } finally {
@@ -98,8 +146,9 @@ export default function ConnectionStepper({ connection, connectionState, role, o
     setError(null);
   }
 
-  async function submitInvite() {
-    const result = validateCode(pastedInvite);
+  async function joinWithCode(rawCode: string) {
+    const code = extractCode(rawCode);
+    const result = validateAnyCode(code);
     if (!result.valid) {
       setError(result.error);
       return;
@@ -107,10 +156,10 @@ export default function ConnectionStepper({ connection, connectionState, role, o
     setBusy(true);
     setError(null);
     try {
-      const code = await connection.joinWithInvite(pastedInvite.trim());
-      setAnswerCode(code);
+      const answer = await connection.joinWithInvite(code);
+      setAnswerCode(answer);
     } catch {
-      setError("เข้าร่วมห้องไม่สำเร็จ ตรวจสอบว่าโค้ดชวนถูกวางครบถ้วน");
+      setError("เข้าร่วมห้องไม่สำเร็จ ตรวจสอบว่าลิงก์หรือโค้ดชวนถูกต้อง");
     } finally {
       setBusy(false);
     }
@@ -130,6 +179,7 @@ export default function ConnectionStepper({ connection, connectionState, role, o
             เข้าร่วมห้อง
           </button>
         </div>
+        <p className="hint">ได้ลิงก์ชวนมา? แค่กดลิงก์นั้น — จะเข้าห้องให้เอง</p>
       </div>
     );
   }
@@ -145,33 +195,56 @@ export default function ConnectionStepper({ connection, connectionState, role, o
         <>
           <div className="step">
             <div className="step-title">
-              <span className="step-badge">1</span> เปิดห้อง → ส่งโค้ดชวนให้เพื่อน
+              <span className="step-badge">1</span> ส่งลิงก์ชวนให้เพื่อน
             </div>
             {inviteCode ? (
               <>
-                <textarea className="code-box" readOnly value={inviteCode} />
-                <button
-                  type="button"
-                  className="btn btn-primary copy-btn"
-                  onClick={async () => setCopiedInvite(await copyToClipboard(inviteCode))}
-                >
-                  {copiedInvite ? <CheckIcon /> : <CopyIcon />}
-                  {copiedInvite ? "คัดลอกแล้ว" : "คัดลอกโค้ดชวน"}
-                </button>
+                <input className="code-box code-line" readOnly value={inviteLink} onFocus={(e) => e.target.select()} />
+                <div className="invite-actions">
+                  <button
+                    type="button"
+                    className="btn btn-primary btn-sm"
+                    onClick={async () => setCopiedInvite(await copyToClipboard(inviteLink))}
+                  >
+                    {copiedInvite ? <CheckIcon /> : <CopyIcon />}
+                    {copiedInvite ? "คัดลอกแล้ว" : "คัดลอกลิงก์"}
+                  </button>
+                  {canShare && (
+                    <button type="button" className="btn btn-outline btn-sm" onClick={shareInvite}>
+                      <ShareIcon />
+                      แชร์
+                    </button>
+                  )}
+                  <button
+                    type="button"
+                    className={`btn btn-outline btn-sm${showQr ? " on" : ""}`}
+                    onClick={() => setShowQr((s) => !s)}
+                    aria-pressed={showQr}
+                  >
+                    <QrIcon />
+                    QR
+                  </button>
+                </div>
+                {showQr && (
+                  <div className="qr-wrap">
+                    <QrCode text={inviteLink} />
+                    <p className="hint">ให้เพื่อนสแกนด้วยกล้องมือถือ แล้วเปิดลิงก์</p>
+                  </div>
+                )}
               </>
             ) : (
-              <p className="hint">{busy ? "กำลังเตรียมโค้ด..." : "กดปุ่ม \"เปิดห้อง\" ด้านล่าง"}</p>
+              <p className="hint">{busy ? "กำลังเตรียมลิงก์..." : "กดปุ่ม \"เปิดห้อง\" ด้านล่าง"}</p>
             )}
           </div>
 
           {inviteCode && connectionState !== "connected" && (
             <div className="step">
               <div className="step-title">
-                <span className="step-badge">2</span> วางโค้ดตอบจากเพื่อน
+                <span className="step-badge">2</span> วางโค้ดตอบจากเพื่อน แล้วกดเชื่อมต่อ
               </div>
               <textarea
                 className="code-input"
-                placeholder="วางโค้ดตอบที่เพื่อนส่งกลับมาที่นี่"
+                placeholder="เพื่อนเปิดลิงก์แล้วจะได้ &quot;โค้ดตอบ&quot; สั้น ๆ — วางที่นี่"
                 value={pastedAnswer}
                 onChange={(e) => setPastedAnswer(e.target.value)}
               />
@@ -185,31 +258,40 @@ export default function ConnectionStepper({ connection, connectionState, role, o
 
       {role === "guest" && (
         <>
-          <div className="step">
-            <div className="step-title">
-              <span className="step-badge">1</span> วางโค้ดชวนจากเพื่อน
+          {!answerCode && (
+            <div className="step">
+              <div className="step-title">
+                <span className="step-badge">1</span> วางลิงก์หรือโค้ดชวนจากเพื่อน
+              </div>
+              {busy ? (
+                <p className="hint">กำลังเข้าห้อง...</p>
+              ) : (
+                <>
+                  <textarea
+                    className="code-input"
+                    placeholder="วางลิงก์ชวน (หรือโค้ดชวน) ที่เพื่อนส่งมาที่นี่"
+                    value={pastedInvite}
+                    onChange={(e) => setPastedInvite(e.target.value)}
+                  />
+                  <button
+                    type="button"
+                    className="btn btn-primary btn-sm"
+                    onClick={() => void joinWithCode(pastedInvite)}
+                    disabled={busy || !pastedInvite}
+                  >
+                    ถัดไป
+                  </button>
+                </>
+              )}
             </div>
-            {!answerCode && (
-              <>
-                <textarea
-                  className="code-input"
-                  placeholder="วางโค้ดชวนที่เพื่อนส่งมาที่นี่"
-                  value={pastedInvite}
-                  onChange={(e) => setPastedInvite(e.target.value)}
-                />
-                <button type="button" className="btn btn-primary btn-sm" onClick={submitInvite} disabled={busy || !pastedInvite}>
-                  ถัดไป
-                </button>
-              </>
-            )}
-          </div>
+          )}
 
           {answerCode && (
             <div className="step">
               <div className="step-title">
-                <span className="step-badge">2</span> ส่งโค้ดตอบกลับให้เพื่อน
+                <span className="step-badge">2</span> ส่งโค้ดตอบนี้กลับให้เพื่อน
               </div>
-              <textarea className="code-box" readOnly value={answerCode} />
+              <textarea className="code-box" readOnly value={answerCode} onFocus={(e) => e.currentTarget.select()} />
               <button
                 type="button"
                 className="btn btn-primary copy-btn"
@@ -218,7 +300,7 @@ export default function ConnectionStepper({ connection, connectionState, role, o
                 {copiedAnswer ? <CheckIcon /> : <CopyIcon />}
                 {copiedAnswer ? "คัดลอกแล้ว" : "คัดลอกโค้ดตอบ"}
               </button>
-              <p className="hint">รอเพื่อนวางโค้ดนี้ฝั่งเขาเพื่อต่อติด</p>
+              <p className="hint">เพื่อนวางโค้ดนี้แล้วกด "เชื่อมต่อ" — เสร็จแล้ววาดด้วยกันได้เลย</p>
             </div>
           )}
         </>

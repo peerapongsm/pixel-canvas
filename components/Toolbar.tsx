@@ -1,11 +1,15 @@
 "use client";
 
-import { DownloadIcon, FlameIcon, TrashIcon } from "@/components/icons";
+import { ERASER } from "@/lib/palette";
+import { DownloadIcon, EraserIcon, FlameIcon, TrashIcon, UndoIcon } from "@/components/icons";
 
 export interface ToolbarProps {
   palette: string[];
+  /** palette index, or ERASER (-1) when the eraser is active */
   selectedColor: number;
   onSelectColor: (index: number) => void;
+  onUndo: () => void;
+  undoDisabled: boolean;
   heatMode: boolean;
   onToggleHeat: () => void;
   onExport: () => void;
@@ -17,6 +21,8 @@ export default function Toolbar({
   palette,
   selectedColor,
   onSelectColor,
+  onUndo,
+  undoDisabled,
   heatMode,
   onToggleHeat,
   onExport,
@@ -41,6 +47,23 @@ export default function Toolbar({
       </div>
 
       <div className="dock-actions">
+        <div className="dock-row" style={{ gap: 6 }}>
+          <button
+            type="button"
+            className={`icon-btn${selectedColor === ERASER ? " on" : ""}`}
+            onClick={() => onSelectColor(ERASER)}
+            aria-pressed={selectedColor === ERASER}
+            title="ยางลบ (E)"
+          >
+            <EraserIcon />
+            ลบ
+          </button>
+          <button type="button" className="icon-btn" onClick={onUndo} disabled={undoDisabled} title="ย้อนกลับ (Ctrl+Z)">
+            <UndoIcon />
+            undo
+          </button>
+        </div>
+
         <div className="heat-legend">
           <button
             type="button"

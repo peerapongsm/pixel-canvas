@@ -34,8 +34,12 @@ describe("isValidPixelMessage", () => {
     expect(isValidPixelMessage({ x: 0, y: 0, color: 1.1, ts: NOW }, NOW)).toBe(false);
   });
 
-  test("rejects negative color", () => {
-    expect(isValidPixelMessage({ x: 0, y: 0, color: -1, ts: NOW }, NOW)).toBe(false);
+  test("accepts the eraser tombstone color (-1)", () => {
+    expect(isValidPixelMessage({ x: 0, y: 0, color: -1, ts: NOW }, NOW)).toBe(true);
+  });
+
+  test("rejects other negative colors", () => {
+    expect(isValidPixelMessage({ x: 0, y: 0, color: -2, ts: NOW }, NOW)).toBe(false);
   });
 
   test("rejects color >= palette length", () => {

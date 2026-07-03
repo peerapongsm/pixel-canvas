@@ -31,11 +31,15 @@ export default function MethodPage() {
             <strong>คุณเป็นคนส่งข้อมูลนั้นเอง</strong> ผ่านช่องทางไหนก็ได้ที่คุณสะดวก (LINE, ข้อความ, อะไรก็ได้):
           </p>
           <ul>
-            <li>คนเปิดห้องกด &quot;เปิดห้อง&quot; → ได้ &quot;โค้ดชวน&quot; (ข้อความสั้น ๆ ที่บีบอัดจาก SDP offer) → ส่งให้เพื่อน</li>
-            <li>เพื่อนวางโค้ดชวน → ได้ &quot;โค้ดตอบ&quot; → ส่งกลับมา</li>
+            <li>คนเปิดห้องกด &quot;เปิดห้อง&quot; → ได้ &quot;ลิงก์ชวน&quot; → ส่งให้เพื่อน (หรือให้สแกน QR)</li>
+            <li>เพื่อนกดลิงก์ → เข้าห้องอัตโนมัติ ได้ &quot;โค้ดตอบ&quot; สั้น ๆ → ส่งกลับมา</li>
             <li>คนเปิดห้องวางโค้ดตอบ → ต่อติด</li>
           </ul>
           <p>
+            ลิงก์ชวนแนบข้อมูล SDP ไว้ใน URL fragment (ส่วนหลัง <code>#</code>) ซึ่งเบราว์เซอร์{" "}
+            <strong>ไม่ส่งไปกับ HTTP request</strong> — ต่อให้เปิดผ่านลิงก์ ข้อมูลเชื่อมต่อก็ยังไม่ผ่าน server ใด ๆ
+            อยู่ดี ตัวโค้ดสั้นลงมากเพราะเราแกะเฉพาะฟิลด์ที่เปลี่ยนจริงจาก SDP (ice-ufrag/pwd, DTLS fingerprint,
+            candidate) มาแพ็กเป็น binary แล้วประกอบ SDP กลับจาก template ฝั่งรับ (<code>lib/shortCode.ts</code>)
             หลังจากขั้นตอนนี้เสร็จ ทั้งสองเครื่องคุยกันตรงตลอดเซสชัน ไม่ต้องแลกโค้ดซ้ำอีก
           </p>
 
@@ -58,12 +62,12 @@ export default function MethodPage() {
 
           <h2>ทำไม TDD แค่บางไฟล์</h2>
           <p>
-            <code>lib/grid.ts</code> (LWW conflict resolution), <code>lib/proto.ts</code> (encode/decode ข้อความ)
-            และ <code>lib/codes.ts</code> (บีบอัด SDP เป็นโค้ด + validate) คือตรรกะที่ผิดพลาดแล้วทำข้อมูลเพี้ยนหรือ
-            เชื่อมต่อไม่ได้เลย เลยเทสต์แน่นด้วย TDD ส่วนการเชื่อมต่อ WebRTC จริง (<code>lib/rtc.ts</code>) และ UI
-            (zoom/pan/canvas) เป็น &quot;ของจริง&quot; ที่ต้องอาศัย browser API (<code>RTCPeerConnection</code>)
-            ซึ่งไม่มีใน environment ทดสอบ (jsdom) — เส้นทางโค้ดของโค้ดเชื่อมต่อ (encode/decode/validate) จึงถูกยืนยัน
-            ผ่าน unit test ของ <code>lib/codes.ts</code> แทน ส่วนการต่อจริงต้องทดสอบมือ 2 เบราว์เซอร์ (ดู README)
+            <code>lib/grid.ts</code> (LWW conflict resolution), <code>lib/proto.ts</code> (encode/decode ข้อความ),
+            <code>lib/shortCode.ts</code> (แพ็ก SDP เป็นโค้ดสั้น + validate) และ <code>lib/undo.ts</code> (ย้อนกลับ
+            แบบไม่ทับงานเพื่อน) คือตรรกะที่ผิดพลาดแล้วทำข้อมูลเพี้ยนหรือเชื่อมต่อไม่ได้เลย เลยเทสต์แน่นด้วย TDD
+            ส่วนการเชื่อมต่อ WebRTC จริง (<code>lib/rtc.ts</code>) และ UI (zoom/pan/canvas) เป็น &quot;ของจริง&quot;
+            ที่ต้องอาศัย browser API (<code>RTCPeerConnection</code>) ซึ่งไม่มีใน environment ทดสอบ (jsdom) —
+            การต่อจริงจึงยืนยันด้วยการทดสอบ 2 เบราว์เซอร์ (ดู README)
           </p>
         </div>
       </main>

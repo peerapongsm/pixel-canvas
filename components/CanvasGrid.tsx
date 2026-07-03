@@ -23,6 +23,8 @@ export interface CanvasGridProps {
   grid: Grid;
   palette: string[];
   onPaint: (x: number, y: number) => void;
+  /** fired when a drawing gesture ends (pointer up/cancel/leave) — undo stroke boundary */
+  onStrokeEnd: () => void;
   onCursorMove: (x: number, y: number) => void;
   friendCursor: Point | null;
   heatMode: boolean;
@@ -33,6 +35,7 @@ export default function CanvasGrid({
   grid,
   palette,
   onPaint,
+  onStrokeEnd,
   onCursorMove,
   friendCursor,
   heatMode,
@@ -153,12 +156,13 @@ export default function CanvasGrid({
           panStart.current = { client: { x: e.clientX, y: e.clientY }, pan };
         }
       } else if (pointers.current.size === 2) {
+        if (isDrawing.current) onStrokeEnd(); // second finger = gesture, close the stroke
         isDrawing.current = false;
         isPanning.current = false;
         lastPinch.current = computePinchState();
       }
     },
-    [mode, pan, paintAtClient, computePinchState]
+    [mode, pan, paintAtClient, computePinchState, onStrokeEnd]
   );
 
   const handlePointerMove = useCallback(
@@ -198,13 +202,17 @@ export default function CanvasGrid({
     [reportCursor, paintAtClient, clampPan, zoom, computePinchState, zoomAtPoint]
   );
 
-  const endPointer = useCallback((e: React.PointerEvent<HTMLCanvasElement>) => {
-    pointers.current.delete(e.pointerId);
-    isDrawing.current = false;
-    lastPaintedCell.current = null;
-    if (pointers.current.size < 1) isPanning.current = false;
-    if (pointers.current.size < 2) lastPinch.current = null;
-  }, []);
+  const endPointer = useCallback(
+    (e: React.PointerEvent<HTMLCanvasElement>) => {
+      pointers.current.delete(e.pointerId);
+      if (isDrawing.current) onStrokeEnd();
+      isDrawing.current = false;
+      lastPaintedCell.current = null;
+      if (pointers.current.size < 1) isPanning.current = false;
+      if (pointers.current.size < 2) lastPinch.current = null;
+    },
+    [onStrokeEnd]
+  );
 
   const handleWheel = useCallback(
     (e: React.WheelEvent<HTMLCanvasElement>) => {
@@ -234,8 +242,8 @@ export default function CanvasGrid({
     for (let y = 0; y < GRID_SIZE; y++) {
       for (let x = 0; x < GRID_SIZE; x++) {
         const cell = grid[indexOf(x, y)];
-        // unpainted cells stay transparent so the board's checkerboard shows through
-        if (cell === null) continue;
+        // unpainted and erased cells stay transparent so the board's checkerboard shows through
+        if (cell === null || cell.color < 0) continue;
         ctx.fillStyle = heatMode ? (cell.peerId === myPeerId ? MINE_COLOR : THEIRS_COLOR) : palette[cell.color] ?? "#c9bfa9";
         ctx.fillRect(x * CELL_PX, y * CELL_PX, CELL_PX, CELL_PX);
       }

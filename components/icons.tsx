@@ -217,6 +217,86 @@ export function DoorIcon({ className }: PixelIconProps) {
   );
 }
 
+export function EraserIcon({ className }: PixelIconProps) {
+  return (
+    <PixelIcon
+      className={className}
+      pattern={[
+        "..........",
+        ".....####.",
+        "....##..##",
+        "...##...##",
+        "..##...##.",
+        ".##...##..",
+        "##...##...",
+        "######....",
+        "..........",
+        "##########",
+      ]}
+    />
+  );
+}
+
+export function UndoIcon({ className }: PixelIconProps) {
+  return (
+    <PixelIcon
+      className={className}
+      pattern={[
+        "..........",
+        "...#......",
+        "..##......",
+        ".########.",
+        "..##....##",
+        "...#....##",
+        "........##",
+        "......###.",
+        "..........",
+        "..........",
+      ]}
+    />
+  );
+}
+
+export function ShareIcon({ className }: PixelIconProps) {
+  return (
+    <PixelIcon
+      className={className}
+      pattern={[
+        ".......##.",
+        "......####",
+        ".......##.",
+        "..###..#..",
+        ".##..##...",
+        ".##..##...",
+        "..###..#..",
+        ".......##.",
+        "......####",
+        ".......##.",
+      ]}
+    />
+  );
+}
+
+export function QrIcon({ className }: PixelIconProps) {
+  return (
+    <PixelIcon
+      className={className}
+      pattern={[
+        "####..####",
+        "#..#..#..#",
+        "####..####",
+        "..........",
+        "##..##..##",
+        "..##..##..",
+        "..........",
+        "####..##..",
+        "#..#....##",
+        "####..##..",
+      ]}
+    />
+  );
+}
+
 export function LinkIcon({ className }: PixelIconProps) {
   return (
     <PixelIcon

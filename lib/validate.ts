@@ -5,7 +5,7 @@
 // value must pass through here before it touches grid state.
 
 import { GRID_SIZE, type Grid } from "@/lib/grid";
-import { PALETTE } from "@/lib/palette";
+import { PALETTE, ERASER } from "@/lib/palette";
 
 const MAX_CLOCK_SKEW_MS = 60_000;
 
@@ -14,7 +14,7 @@ function isValidCoord(n: number): boolean {
 }
 
 function isValidColor(n: number): boolean {
-  return Number.isInteger(n) && n >= 0 && n < PALETTE.length;
+  return n === ERASER || (Number.isInteger(n) && n >= 0 && n < PALETTE.length);
 }
 
 function isValidTs(ts: number, now: number): boolean {

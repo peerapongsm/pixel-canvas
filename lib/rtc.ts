@@ -3,7 +3,7 @@
 // themselves. Google's public STUN server is used for NAT traversal info
 // only; there is no TURN relay, so some NAT combinations simply can't
 // connect peer-to-peer (see /method for the honest explanation).
-import { encodeSdpToCode, decodeCodeToSdp } from "@/lib/codes";
+import { encodeSdp, decodeAnyCodeToSdp } from "@/lib/shortCode";
 import { encode, decode, type Message } from "@/lib/proto";
 
 const ICE_SERVERS: RTCIceServer[] = [{ urls: "stun:stun.l.google.com:19302" }];
@@ -92,7 +92,7 @@ export class PixelCanvasConnection {
     await this.waitForIceGatheringComplete(pc);
 
     this.setState("waiting-for-answer");
-    return encodeSdpToCode(pc.localDescription!.sdp);
+    return encodeSdp(pc.localDescription!.sdp);
   }
 
   /** Guest, step 2: paste the host's invite code, produce an answer code to send back. */
@@ -100,7 +100,7 @@ export class PixelCanvasConnection {
     const pc = this.createPeerConnection();
     pc.ondatachannel = (event) => this.attachChannel(event.channel);
 
-    const offerSdp = decodeCodeToSdp(inviteCode);
+    const offerSdp = decodeAnyCodeToSdp(inviteCode);
     await pc.setRemoteDescription({ type: "offer", sdp: offerSdp });
 
     this.setState("gathering");
@@ -108,13 +108,13 @@ export class PixelCanvasConnection {
     await this.waitForIceGatheringComplete(pc);
 
     this.setState("connecting");
-    return encodeSdpToCode(pc.localDescription!.sdp);
+    return encodeSdp(pc.localDescription!.sdp);
   }
 
   /** Host, step 3: paste the guest's answer code to complete the connection. */
   async completeWithAnswer(answerCode: string): Promise<void> {
     if (!this.pc) throw new Error("no active connection to complete");
-    const answerSdp = decodeCodeToSdp(answerCode);
+    const answerSdp = decodeAnyCodeToSdp(answerCode);
     this.setState("connecting");
     await this.pc.setRemoteDescription({ type: "answer", sdp: answerSdp });
   }

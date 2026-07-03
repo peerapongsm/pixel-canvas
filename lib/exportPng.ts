@@ -17,7 +17,7 @@ export function exportGridAsPng(grid: Grid, palette: string[], filename = "pixel
   for (let y = 0; y < GRID_SIZE; y++) {
     for (let x = 0; x < GRID_SIZE; x++) {
       const cell = grid[indexOf(x, y)];
-      if (cell === null) continue; // leave unpainted cells transparent
+      if (cell === null || cell.color < 0) continue; // leave unpainted/erased cells transparent
       ctx.fillStyle = palette[cell.color] ?? "#000000";
       ctx.fillRect(x * EXPORT_SCALE, y * EXPORT_SCALE, EXPORT_SCALE, EXPORT_SCALE);
     }
