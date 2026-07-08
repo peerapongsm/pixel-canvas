@@ -8,6 +8,7 @@ import { encode, decode, type Message } from "@/lib/proto";
 
 const ICE_SERVERS: RTCIceServer[] = [{ urls: "stun:stun.l.google.com:19302" }];
 const CHANNEL_LABEL = "pixel-canvas";
+const ICE_GATHERING_TIMEOUT_MS = 5000;
 
 export type ConnectionState =
   | "idle"
@@ -69,15 +70,21 @@ export class PixelCanvasConnection {
     };
   }
 
+  // Some networks (VPNs, restrictive firewalls, unreachable STUN) never reach
+  // "complete", which would otherwise hang invite/answer generation forever.
+  // We settle for whatever candidates gathered within the timeout instead.
   private waitForIceGatheringComplete(pc: RTCPeerConnection): Promise<void> {
     if (pc.iceGatheringState === "complete") return Promise.resolve();
     return new Promise((resolve) => {
-      const check = () => {
-        if (pc.iceGatheringState === "complete") {
-          pc.removeEventListener("icegatheringstatechange", check);
-          resolve();
-        }
+      const finish = () => {
+        pc.removeEventListener("icegatheringstatechange", check);
+        clearTimeout(timer);
+        resolve();
       };
+      const check = () => {
+        if (pc.iceGatheringState === "complete") finish();
+      };
+      const timer = setTimeout(finish, ICE_GATHERING_TIMEOUT_MS);
       pc.addEventListener("icegatheringstatechange", check);
     });
   }
