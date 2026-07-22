@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { apply, createEmptyGrid, indexOf, type Grid } from "@/lib/grid";
-import { shouldAcceptClearAccept, shouldAcceptClearRequest, type ClearFlow } from "@/lib/clearFlow";
+import { shouldAcceptClearRequest, type ClearFlow } from "@/lib/clearFlow";
 import { PALETTE, ERASER } from "@/lib/palette";
 import { pushStroke, recordPaint, undoOps, type Stroke } from "@/lib/undo";
 import { loadGrid as loadCachedGrid, saveGrid } from "@/lib/storage";
@@ -172,7 +172,7 @@ export default function Home() {
   }
 
   function handleClearAccept() {
-    if (!shouldAcceptClearAccept(clearFlowRef.current)) return;
+    // button is only rendered in the "peer-requested" state — no extra guard
     session?.acceptClear();
     wipeCanvas();
   }

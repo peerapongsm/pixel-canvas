@@ -57,7 +57,13 @@ export function joinRoomChannel(roomId: string, me: Peer): Promise<{ handle: Roo
       opCb?.(msg);
     });
 
+    let firstSync: (() => void) | null = null;
+    const syncedOnce = new Promise<void>((res) => {
+      firstSync = res;
+    });
     channel.on("presence", { event: "sync" }, () => {
+      firstSync?.();
+      firstSync = null;
       rosterCb?.(rosterFromPresence(channel));
     });
 
@@ -82,7 +88,9 @@ export function joinRoomChannel(roomId: string, me: Peer): Promise<{ handle: Roo
     channel.subscribe(async (status) => {
       if (status === "SUBSCRIBED" && !resolved) {
         resolved = true;
-        // room-full check BEFORE tracking ourselves
+        // room-full check BEFORE tracking ourselves. Presence state is empty
+        // at SUBSCRIBED time — wait for the first presence sync (bounded).
+        await Promise.race([syncedOnce, new Promise((r) => setTimeout(r, 2500))]);
         const present = rosterFromPresence(channel);
         const alreadyIn = present.some((p) => p.peerId === me.peerId);
         if (!alreadyIn && present.length >= MAX_PLAYERS) {

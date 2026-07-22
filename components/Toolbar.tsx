@@ -74,14 +74,6 @@ export default function Toolbar({
             <FlameIcon />
             heat
           </button>
-          <span className={`legend-chip mine${heatMode ? " active" : ""}`}>
-            <span className="dot" />
-            ฉัน
-          </span>
-          <span className={`legend-chip theirs${heatMode ? " active" : ""}`}>
-            <span className="dot" />
-            เพื่อน
-          </span>
         </div>
 
         <div className="dock-row" style={{ gap: 6 }}>

@@ -149,7 +149,11 @@ export default function CanvasGrid({
 
   const handlePointerDown = useCallback(
     (e: React.PointerEvent<HTMLCanvasElement>) => {
-      (e.target as HTMLCanvasElement).setPointerCapture(e.pointerId);
+      try {
+        (e.target as HTMLCanvasElement).setPointerCapture(e.pointerId);
+      } catch {
+        // synthetic/expired pointers can't be captured — drawing still works
+      }
       pointers.current.set(e.pointerId, { x: e.clientX, y: e.clientY });
 
       if (pointers.current.size === 1) {
