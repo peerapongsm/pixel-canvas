@@ -8,15 +8,20 @@ const CANVAS_PX = 512; // fixed internal raster resolution, CSS scales it to fit
 const CELL_PX = CANVAS_PX / GRID_SIZE;
 const MIN_ZOOM = 1;
 const MAX_ZOOM = 8;
-const MINE_COLOR = "#3b5dc9";
-const THEIRS_COLOR = "#ef7d57";
-const CURSOR_COLOR = "#ff3d81";
 const CURSOR_THROTTLE_MS = 100; // 10Hz
 const ZOOM_STEP = 1.4;
 
 interface Point {
   x: number;
   y: number;
+}
+
+export interface PeerCursor {
+  peerId: string;
+  x: number;
+  y: number;
+  color: string; // slot tint from identity.heatColor
+  label: string; // nickname
 }
 
 export interface CanvasGridProps {
@@ -26,9 +31,10 @@ export interface CanvasGridProps {
   /** fired when a drawing gesture ends (pointer up/cancel/leave) — undo stroke boundary */
   onStrokeEnd: () => void;
   onCursorMove: (x: number, y: number) => void;
-  friendCursor: Point | null;
+  cursors: PeerCursor[];
   heatMode: boolean;
-  myPeerId: string;
+  /** per-author tint for heat mode; unknown authors get a neutral grey */
+  heatTint: (peerId: string) => string;
 }
 
 export default function CanvasGrid({
@@ -37,9 +43,9 @@ export default function CanvasGrid({
   onPaint,
   onStrokeEnd,
   onCursorMove,
-  friendCursor,
+  cursors,
   heatMode,
-  myPeerId,
+  heatTint,
 }: CanvasGridProps) {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const [zoom, setZoom] = useState(1);
@@ -244,17 +250,18 @@ export default function CanvasGrid({
         const cell = grid[indexOf(x, y)];
         // unpainted and erased cells stay transparent so the board's checkerboard shows through
         if (cell === null || cell.color < 0) continue;
-        ctx.fillStyle = heatMode ? (cell.peerId === myPeerId ? MINE_COLOR : THEIRS_COLOR) : palette[cell.color] ?? "#c9bfa9";
+        ctx.fillStyle = heatMode ? heatTint(cell.peerId) : palette[cell.color] ?? "#c9bfa9";
         ctx.fillRect(x * CELL_PX, y * CELL_PX, CELL_PX, CELL_PX);
       }
     }
 
-    // friend cursor: chunky pixel-arrow pointer, ink outline for contrast
-    if (friendCursor && inBounds(friendCursor.x, friendCursor.y)) {
-      const tipX = friendCursor.x * CELL_PX;
-      const tipY = friendCursor.y * CELL_PX;
+    // peer cursors: chunky pixel-arrow pointer per peer, slot-tinted
+    for (const c of cursors) {
+      if (!inBounds(c.x, c.y)) continue;
+      const tipX = c.x * CELL_PX;
+      const tipY = c.y * CELL_PX;
       const s = CELL_PX * 1.7;
-      ctx.strokeStyle = CURSOR_COLOR;
+      ctx.strokeStyle = c.color;
       ctx.globalAlpha = 0.55;
       ctx.lineWidth = 1 / zoom;
       ctx.strokeRect(tipX, tipY, CELL_PX, CELL_PX);
@@ -271,7 +278,7 @@ export default function CanvasGrid({
       ctx.lineTo(s * 0.42, s * 0.62);
       ctx.lineTo(s * 0.72, s * 0.55);
       ctx.closePath();
-      ctx.fillStyle = CURSOR_COLOR;
+      ctx.fillStyle = c.color;
       ctx.fill();
       ctx.lineWidth = 1.4 / zoom;
       ctx.strokeStyle = "#2c2620";
@@ -280,7 +287,7 @@ export default function CanvasGrid({
     }
 
     ctx.restore();
-  }, [grid, zoom, pan, palette, heatMode, myPeerId, friendCursor]);
+  }, [grid, zoom, pan, palette, heatMode, heatTint, cursors]);
 
   const handleZoomIn = useCallback(
     () => zoomAtPoint(zoom * ZOOM_STEP, CANVAS_PX / 2, CANVAS_PX / 2),
@@ -291,15 +298,19 @@ export default function CanvasGrid({
     [zoom, zoomAtPoint]
   );
 
-  // screen-space position (in % of the stage) for the friend cursor's DOM name tag
-  let friendTagStyle: { left: string; top: string } | null = null;
-  if (friendCursor && inBounds(friendCursor.x, friendCursor.y)) {
-    const worldX = friendCursor.x * CELL_PX;
-    const worldY = friendCursor.y * CELL_PX;
-    const dispX = worldX * zoom - pan.x;
-    const dispY = worldY * zoom - pan.y;
-    friendTagStyle = { left: `${(dispX / CANVAS_PX) * 100}%`, top: `${(dispY / CANVAS_PX) * 100}%` };
-  }
+  // screen-space positions (in % of the stage) for peer cursors' DOM name tags
+  const cursorTags = cursors
+    .filter((c) => inBounds(c.x, c.y))
+    .map((c) => {
+      const dispX = c.x * CELL_PX * zoom - pan.x;
+      const dispY = c.y * CELL_PX * zoom - pan.y;
+      return {
+        key: c.peerId,
+        label: c.label,
+        color: c.color,
+        style: { left: `${(dispX / CANVAS_PX) * 100}%`, top: `${(dispY / CANVAS_PX) * 100}%` },
+      };
+    });
 
   return (
     <div className="canvas-board">
@@ -313,11 +324,11 @@ export default function CanvasGrid({
           onPointerLeave={endPointer}
           onWheel={handleWheel}
         />
-        {friendTagStyle && (
-          <div className="friend-tag" style={friendTagStyle}>
-            เพื่อน
+        {cursorTags.map((t) => (
+          <div key={t.key} className="friend-tag" style={{ ...t.style, background: t.color }}>
+            {t.label}
           </div>
-        )}
+        ))}
         <div className="canvas-tools">
           <button
             type="button"
