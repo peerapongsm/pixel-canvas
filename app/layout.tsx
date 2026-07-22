@@ -17,8 +17,8 @@ const sarabun = Sarabun({
 });
 
 export const metadata: Metadata = {
-  title: "Pixel Canvas สองคน",
-  description: "canvas 64x64 ที่คุณกับเพื่อนวาดด้วยกันสดๆ ผ่าน WebRTC ตรง ไม่มี server",
+  title: "Pixel Canvas",
+  description: "canvas 64x64 ที่คุณกับเพื่อนวาดด้วยกันสด ๆ ผ่านลิงก์ห้องเดียวกัน สูงสุด 4 คน ผืนเก็บไว้ 30 วัน",
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

@@ -1,7 +1,7 @@
 {
   "name": "project-34-pixel-canvas",
   "version": "1.0.0",
-  "description": "Two-Person Pixel Canvas — วาด pixel art 64x64 สดๆ กับเพื่อนคนเดียวผ่าน WebRTC ตรง ไม่มี server",
+  "description": "Pixel Canvas — วาด pixel art 64x64 สด ๆ กับเพื่อนสูงสุด 4 คนผ่านลิงก์ห้อง (Supabase Realtime + Postgres)",
   "scripts": {
     "dev": "next dev",
     "build": "next build",
